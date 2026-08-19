@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>De Grote Vriendenquiz – Live</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+body{margin:0;background:#0e1220;color:#fff;font-family:Arial,sans-serif}main{max-width:1100px;margin:auto;padding:24px}
+.card{background:#1b2338;border-radius:22px;padding:28px;margin:16px 0;box-shadow:0 10px 30px #0005}
+h1{font-size:clamp(32px,5vw,64px);margin:0 0 10px}h2{font-size:clamp(25px,3vw,42px)}
+button{border:0;border-radius:14px;padding:15px 22px;margin:7px;font-size:19px;font-weight:bold;cursor:pointer}
+.primary{background:#6ee7ff;color:#081018}.option{background:#2b3757;color:#fff;display:block;width:100%;text-align:left}
+.option:hover{filter:brightness(1.2)}input{padding:14px;border-radius:10px;border:0;font-size:19px;width:100%;max-width:500px}
+.badge{display:inline-block;padding:8px 12px;background:#ffffff12;border-radius:99px;margin:4px}.muted{opacity:.7}
+#qr{background:#fff;padding:12px;border-radius:12px;max-width:240px}.players{display:flex;flex-wrap:wrap;gap:10px}.player{background:#ffffff12;padding:10px 14px;border-radius:12px}
+.hidden{display:none}.good{background:#38d996!important;color:#071018}.bad{background:#ff6877!important}
+table{width:100%;border-collapse:collapse}td,th{padding:10px;text-align:left;border-bottom:1px solid #ffffff18}
+</style></head>
+<body><main>
+<section id="home" class="card">
+<h1>🏆 De Grote Vriendenquiz</h1>
+<p>Live quiz voor TV + telefoons • 40 vragen • 10 spelers</p>
+<button class="primary" onclick="host()">TV / Quizmaster starten</button>
+</section>
+
+<section id="host" class="hidden">
+<div class="card">
+<h1>📺 TV-scherm</h1>
+<p>Laat iedereen deze QR-code scannen.</p>
+<canvas id="qr"></canvas>
+<p><b>Spelcode:</b> <span id="code" style="font-size:32px"></span></p>
+<p class="muted" id="joinurl"></p>
+<div class="players" id="players"></div>
+<button class="primary" onclick="startGame()">Start quiz</button>
+</div>
+<div class="card">
+<div id="hostmeta"></div><h2 id="hostq">Wachten op spelers…</h2>
+<div id="hostopts"></div><p id="hoststatus"></p>
+<button class="primary hidden" id="hostnext" onclick="hostNext()">Volgende vraag</button>
+</div>
+<div class="card"><h2>Tussenstand</h2><div id="scoreboard"></div></div>
+</section>
+
+<section id="phone" class="hidden">
+<div class="card">
+<h1>📱 Meedoen</h1>
+<div id="namebox"><input id="name" placeholder="Je naam"><button class="primary" onclick="join()">Meedoen</button></div>
+<div id="phonegame" class="hidden"><p id="phonemeta"></p><h2 id="phoneq"></h2><div id="phoneopts"></div><p id="phonestatus"></p></div>
+</div>
+</section>
+
+<section id="end" class="hidden card"><h1>🏆 Eindstand</h1><div id="final"></div></section>
+</main>
+<script>
+const questions = [
+["Muziek","Welke band scoorde in 1987 een wereldhit met 'Never Gonna Give You Up'?",["A-ha","Rick Astley","Duran Duran","Depeche Mode"],1],
+["Muziek","Welke Nederlandse band maakte 'Radar Love'?",["Golden Earring","Doe Maar","Normaal","Focus"],0],
+["Muziek","Wie bracht het album 'Jagged Little Pill' uit?",["Shania Twain","Alanis Morissette","Tracy Chapman","Avril Lavigne"],1],
+["Muziek","Welke band had in 1995 de enorme hit 'Wonderwall'?",["Blur","Oasis","Radiohead","The Verve"],1],
+["Muziek","Welke artiest wordt ook wel 'The Boss' genoemd?",["Billy Joel","Bruce Springsteen","Bryan Adams","Bon Jovi"],1],
+["Muziek","Wie had de bekende hit 'Bloed, Zweet en Tranen'?",["André Hazes","Frans Bauer","Marco Borsato","Guus Meeuwis"],0],
+["Muziek","Welke band maakte 'Smells Like Teen Spirit'?",["Pearl Jam","Metallica","Nirvana","Soundgarden"],2],
+["Voetbal & sport","Welke Nederlandse club won in 1988 de Europacup I?",["Ajax","PSV","Feyenoord","AZ"],1],
+["Voetbal & sport","Wie maakte in de EK-finale van 1988 het beroemde doelpunt tegen de Sovjet-Unie?",["Ruud Gullit","Marco van Basten","Ronald Koeman","Frank Rijkaard"],1],
+["Voetbal & sport","Welke club speelt zijn thuiswedstrijden in De Kuip?",["Ajax","PSV","Feyenoord","FC Utrecht"],2],
+["Voetbal & sport","Hoeveel spelers staan er bij de aftrap van een normale voetbalwedstrijd op het veld?",["20","22","24","26"],1],
+["Voetbal & sport","Welke club wordt 'De Tricolores' genoemd?",["NAC Breda","Willem II","RKC Waalwijk","FC Groningen"],1],
+["Voetbal & sport","In welke sport wordt de term 'birdie' gebruikt?",["Tennis","Golf","Darts","Badminton"],1],
+["Voetbal & sport","Welke Nederlander werd in 2021 voor het eerst wereldkampioen Formule 1?",["Jos Verstappen","Nyck de Vries","Max Verstappen","Robert Doornbos"],2],
+["TV & film","Welke Nederlandse serie draaide om de familie Flodder?",["Flodder","Medisch Centrum West","Zeg 'ns Aaa","Toen Was Geluk Heel Gewoon"],0],
+["TV & film","Wie speelde Mr. Bean?",["John Cleese","Rowan Atkinson","Steve Coogan","Hugh Grant"],1],
+["TV & film","Welke film uit 1997 speelt zich grotendeels af aan boord van de Titanic?",["Pearl Harbor","The Perfect Storm","Titanic","Speed"],2],
+["TV & film","Wie speelde Forrest Gump?",["Kevin Costner","Tom Hanks","Robin Williams","Richard Gere"],1],
+["TV & film","Welke presentator was jarenlang verbonden aan Lingo?",["Ron Brandsteder","Robert ten Brink","Lucille Werner","André van Duin"],2],
+["TV & film","In welke filmreeks komt het personage Indiana Jones voor?",["Star Wars","Jurassic Park","Indiana Jones","Mission: Impossible"],2],
+["TV & film","Welke Nederlandse serie speelde zich af rond een ziekenhuis en werd vanaf 1988 uitgezonden?",["Medisch Centrum West","Baantjer","Westenwind","Onderweg naar Morgen"],0],
+["Algemene kennis","Wat is de hoofdstad van Australië?",["Sydney","Melbourne","Canberra","Perth"],2],
+["Algemene kennis","Hoeveel provincies heeft Nederland?",["10","11","12","13"],2],
+["Algemene kennis","Welke planeet staat het dichtst bij de zon?",["Venus","Mars","Mercurius","Aarde"],2],
+["Algemene kennis","Welk land is qua oppervlakte het grootste ter wereld?",["Canada","China","Verenigde Staten","Rusland"],3],
+["Algemene kennis","Welke Nederlandse stad is beroemd om zijn traditionele kaasmarkt?",["Gouda","Leiden","Maastricht","Alkmaar"],0],
+["Algemene kennis","Hoeveel zijden heeft een hexagon?",["5","6","7","8"],1],
+["Algemene kennis","Welk metaal heeft het chemische symbool Fe?",["Fluor","IJzer","Francium","Fosfor"],1],
+["Instinkers","Een boer heeft 17 schapen. Alle behalve 9 lopen weg. Hoeveel schapen heeft hij nog?",["8","9","17","0"],1],
+["Instinkers","Je haalt tijdens een wedstrijd de persoon op de tweede plaats in. Op welke plaats lig je dan?",["Eerste","Tweede","Derde","Vierde"],1],
+["Instinkers","Wat wordt natter terwijl het iets anders droogmaakt?",["Een spons","Een handdoek","Een föhn","Een paraplu"],1],
+["Instinkers","Een vliegtuig stort neer op de grens van Nederland en België. Waar worden de overlevenden begraven?",["Nederland","België","Op de grens","Nergens"],3],
+["Instinkers","Wat heeft een hals maar geen hoofd?",["Een jas","Een fles","Een stoel","Een schoen"],1],
+["Instinkers","Welke maand heeft 28 dagen?",["Februari","Alleen januari","Alleen februari in een normaal jaar","Alle maanden"],3],
+["Persoonlijk","Wie is docent Frans, altijd onderweg en heeft een bijzondere manier van lachen?",["Barbara","Marion","Nancy","Nicole"],0],
+["Persoonlijk","Wie komt oorspronkelijk uit Groningen, woont in Tilburg, is voor Willem II en werkt bij de Beekse Bergen?",["Berry","Klaas","Jurgen","Bjorn"],1],
+["Persoonlijk","Wie is kapster, noemt zichzelf een digibeet en wil bij spelletjes absoluut niet verliezen?",["Jenny","Nancy","Nicole","Marion"],2],
+["Persoonlijk","Wie heeft in het eerste elftal van Someren gevoetbald en is een fanatieke coach van zijn jongens?",["Richard","Berry","Bjorn","Jurgen"],2],
+["Persoonlijk","Wie zit graag op de boot, houdt van kleding kopen en werkt als receptioniste?",["Marion","Barbara","Jenny","Nancy"],0],
+["Persoonlijk","Wie is project engineer voor matrijzen, een grote PSV-fan, ad rem én lid van een carnavalsclub?",["Richard","Jurgen","Berry","Klaas"],0]
+];
+let peer,conn,hostMode=false,room="",qi=-1,players={},answered=0;
+
+function uid(){return Math.random().toString(36).slice(2,8).toUpperCase()}
+function host(){
+ hostMode=true;home.classList.add("hidden");document.getElementById("host").classList.remove("hidden");
+ room=uid(); code.textContent=room;
+ const joinUrl=location.href.split("#")[0]+"#join="+room;
+ joinurl.textContent=joinUrl;
+ QRCode.toCanvas(document.getElementById("qr"),joinUrl,{width:220});
+ peer=new Peer("VQ-"+room);
+ peer.on("connection",c=>{c.on("open",()=>{c.on("data",d=>hostData(c,d));})});
+}
+function hostData(c,d){
+ if(d.type==="join"){players[d.id]={name:d.name,score:0,conn:c};c.send({type:"welcome",room});renderPlayers();}
+ if(d.type==="answer"){if(players[d.id]&&players[d.id].q===qi)return;let p=players[d.id];if(!p)return;p.q=qi;if(d.answer===questions[qi][4])p.score++;answered++;c.send({type:"answerResult",correct:d.answer===questions[qi][4],correctAnswer:questions[qi][4]});if(answered>=Object.keys(players).length)hostNextButton();}
+}
+function renderPlayers(){playersDiv=document.getElementById("players");playersDiv.innerHTML=Object.values(players).map(p=>`<span class="player">${p.name} · ${p.score}</span>`).join("");}
+function startGame(){if(!Object.keys(players).length){alert("Laat eerst minimaal één speler meedoen.");return}qi=0;sendQuestion();renderScores();}
+function sendQuestion(){answered=0;let x=questions[qi];hostmeta.textContent=`Vraag ${qi+1} van ${questions.length} • ${x[0]}`;hostq.textContent=x[1];hostopts.innerHTML=x[2].map((o,n)=>`<button class="option">${String.fromCharCode(65+n)}. ${o}</button>`).join("");hoststatus.textContent="Antwoorden worden verzameld…";hostnext.classList.add("hidden");Object.values(players).forEach(p=>p.conn.send({type:"question",q:qi,round:x[0],text:x[1],options:x[2]}));}
+function hostNextButton(){hoststatus.textContent="Iedereen heeft geantwoord.";hostnext.classList.remove("hidden");renderScores();}
+function hostNext(){qi++;if(qi>=questions.length){finish();return}sendQuestion();}
+function renderScores(){scoreboard.innerHTML="<table><tr><th>Speler</th><th>Punten</th></tr>"+Object.values(players).sort((a,b)=>b.score-a.score).map(p=>`<tr><td>${p.name}</td><td>${p.score}</td></tr>`).join("")+"</table>";renderPlayers();}
+function finish(){Object.values(players).forEach(p=>p.conn.send({type:"end"}));hostq.textContent="🏆 Quiz afgelopen!";hoststatus.textContent="Bekijk de eindstand.";hostnext.classList.add("hidden");renderScores();}
+function join(){let name=document.getElementById("name").value.trim();if(!name)return alert("Vul je naam in.");room=(location.hash.match(/join=([^&]+)/)||[])[1]||prompt("Spelcode?");if(!room)return;document.getElementById("namebox").classList.add("hidden");document.getElementById("phonegame").classList.remove("hidden");peer=new Peer();peer.on("open",id=>{conn=peer.connect("VQ-"+room);conn.on("open",()=>conn.send({type:"join",id,name}));conn.on("data",phoneData)});}
+function phoneData(d){if(d.type==="question"){phonemeta.textContent=`Vraag ${d.q+1} • ${d.round}`;phoneq.textContent=d.text;phoneopts.innerHTML=d.options.map((o,n)=>`<button class="option" onclick="sendAnswer(${n})">${String.fromCharCode(65+n)}. ${o}</button>`).join("");phonestatus.textContent="Kies je antwoord.";qi=d.q}
+if(d.type==="answerResult"){phonestatus.textContent=d.correct?"✅ Goed!":"❌ Helaas. Het juiste antwoord is "+String.fromCharCode(65+d.correctAnswer)+".";document.querySelectorAll("#phoneopts button").forEach(b=>b.disabled=true)}
+if(d.type==="end"){phonestatus.textContent="🏆 De quiz is afgelopen!";}}
+function sendAnswer(n){conn.send({type:"answer",id:peer.id,q:qi,answer:n});document.querySelectorAll("#phoneopts button").forEach(b=>b.disabled=true);phonestatus.textContent="Antwoord verstuurd…";}
+if(location.hash.startsWith("#join=")){home.classList.add("hidden");document.getElementById("phone").classList.remove("hidden");}
+</script></body></html>
